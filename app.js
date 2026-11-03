@@ -6,6 +6,7 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { XRPinchGestures } from './xr-gestures.js';
+import { renderObjectTree } from './object-tree.js';
 
 const $ = id => document.getElementById(id);
 const CDN = 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/';
@@ -161,6 +162,8 @@ async function openModel(name, readData) {
     $('clips').replaceChildren(...clips.map((clip, i) => new Option(clip.name || `Animation ${i + 1}`, i)));
     $('playback').hidden = !clips.length;
     if (mixer) selectClip();
+    renderObjectTree($('object-tree'), model);
+    $('objects').hidden = false;
     $('welcome').hidden = true;
     $('filename').textContent = name;
     $('filename').title = name;

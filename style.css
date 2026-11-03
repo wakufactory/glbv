@@ -54,12 +54,34 @@ select { background: #25262c; padding: 0 6px; }
 #status.error { color: #ffb6b6; }
 #drop { position: fixed; inset: 10px; border: 2px dashed #a9b9eb; border-radius: 16px; background: #151d33ed; display: grid; place-items: center; font-size: 22px; pointer-events: none; z-index: 5; }
 [hidden] { display: none !important; }
-body.xr .toolbar, body.xr .settings, body.xr footer, body.xr #welcome { display: none; }
+#objects { position: fixed; left: max(20px, env(safe-area-inset-left)); top: max(90px, calc(env(safe-area-inset-top) + 70px)); width: min(300px, calc(100vw - 40px)); }
+.objects-heading { cursor: pointer; padding: 14px; font-weight: 600; }
+.objects-heading span { float: right; color: #92959f; font-size: 10px; font-weight: 400; padding-top: 2px; }
+#objects summary:focus-visible { outline: 2px solid #becbff; outline-offset: -2px; }
+#object-tree { max-height: calc(100dvh - 260px); overflow: auto; padding: 0 10px 12px; overscroll-behavior: contain; }
+#object-tree ul { list-style: none; margin: 0; padding-left: 16px; }
+#object-tree > ul { padding-left: 0; }
+#object-tree summary { display: flex; align-items: center; cursor: pointer; list-style: none; }
+#object-tree summary::-webkit-details-marker { display: none; }
+#object-tree summary::before { content: '▸'; flex: 0 0 16px; color: #92959f; text-align: center; }
+#object-tree details[open] > summary::before { content: '▾'; }
+.object-row { flex: 1; min-width: 0; border-radius: 5px; }
+.object-row:hover { background: #ffffff0c; }
+.object-row label { display: flex; align-items: center; gap: 7px; min-height: 32px; cursor: pointer; padding: 3px; }
+.object-row input { margin: 0; accent-color: #c2ccef; flex-shrink: 0; }
+.object-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.object-row small { margin: 0 0 0 auto; font-size: 10px; color: #92959f; flex-shrink: 0; }
+.object-leaf { margin-left: 16px; }
+.object-row.ancestor-hidden { opacity: .45; }
+.object-row.node-hidden span { color: #92959f; }
+body.xr .toolbar, body.xr .settings, body.xr footer, body.xr #welcome, body.xr #objects { display: none; }
 @media (max-width: 640px) {
   .toolbar { left: 12px; top: max(12px, env(safe-area-inset-top)); padding-left: 12px; gap: 8px; max-width: calc(100vw - 24px); right: 12px; }
   #filename { flex: 1; max-width: none; }
   .settings { top: max(77px, calc(env(safe-area-inset-top) + 65px)); right: 12px; }
   #status { top: 140px; }
+  #objects { left: 12px; top: max(140px, calc(env(safe-area-inset-top) + 128px)); width: min(280px, calc(100vw - 24px)); }
+  #object-tree { max-height: min(35dvh, calc(100dvh - 330px)); }
   footer { left: 12px; right: 12px; bottom: max(16px, env(safe-area-inset-bottom)); }
   #playback { gap: 5px; }
   #time { font-size: 10px; }

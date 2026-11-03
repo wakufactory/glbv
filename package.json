@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "check": "node --check app.js && node --check xr-gestures.js && node --check scripts/serve.mjs",
+    "check": "node --check app.js && node --check object-tree.js && node --check xr-gestures.js && node --check scripts/serve.mjs",
     "start:http": "node scripts/serve.mjs --http --port 8080",
     "test": "node --test"
   },

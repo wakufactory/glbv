@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>GLBV — GLB Viewer</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
+  </script>
+</head>
+<body>
+  <canvas id="viewport" aria-label="3Dモデル。ドラッグで回転、ホイールまたはピンチでズーム"></canvas>
+  <header class="toolbar panel">
+    <a class="brand" href="./" aria-label="GLBV ホーム">GLB<span>V</span></a>
+    <span class="divider"></span>
+    <button id="open" class="primary">＋ 開く</button>
+    <input id="file" type="file" accept=".glb" hidden>
+    <span id="filename">GLB Viewer</span>
+    <button id="fit" title="モデル全体を表示 (F)" aria-label="モデル全体を表示" disabled>⛶</button>
+  </header>
+
+  <aside class="settings panel" aria-label="表示設定">
+    <fieldset id="background"><legend>背景</legend>
+      <button class="swatch black" data-color="#000000" title="黒" aria-label="黒背景" aria-pressed="true"></button>
+      <button class="swatch gray" data-color="#777777" title="中間色" aria-label="中間色背景" aria-pressed="false"></button>
+      <button class="swatch white" data-color="#f1f0ec" title="白系" aria-label="白系背景" aria-pressed="false"></button>
+    </fieldset>
+    <span class="divider"></span>
+    <details id="lighting">
+      <summary>照明</summary>
+      <div class="lighting-controls panel">
+        <label for="environment-intensity">環境マップ</label>
+        <output id="environment-value" for="environment-intensity">0.35</output>
+        <input id="environment-intensity" type="range" min="0" max="3" step="0.05" value="0.35">
+        <label for="hemisphere-intensity">半球ライト</label>
+        <output id="hemisphere-value" for="hemisphere-intensity">0.50</output>
+        <input id="hemisphere-intensity" type="range" min="0" max="3" step="0.05" value="0.5">
+        <label for="directional-intensity">平行光</label>
+        <output id="directional-value" for="directional-intensity">2.50</output>
+        <input id="directional-intensity" type="range" min="0" max="10" step="0.1" value="2.5">
+      </div>
+    </details>
+    <button id="ar" disabled title="WebXR対応状況を確認中">AR</button>
+    <button id="vr" disabled title="WebXR対応状況を確認中">VR</button>
+  </aside>
+
+  <main id="welcome">
+    <div class="file-icon" aria-hidden="true">◇</div>
+    <h1>かたちを、ひらく。</h1>
+    <p>GLBファイルをここにドロップ</p>
+    <button id="choose" class="primary">ファイルを選ぶ <span>↗</span></button>
+    <button id="demo" class="text-button">アニメーションのサンプルを見る</button>
+    <small>ファイルは端末内で処理されます</small>
+  </main>
+
+  <button id="exit-xr" class="panel">XRを終了</button>
+  <div id="drop" hidden>GLBファイルをドロップ</div>
+  <div id="status" role="status" aria-live="polite"></div>
+  <footer>
+    <p id="hint">ドラッグで回転 <span>·</span> スクロール / ピンチでズーム</p>
+    <div id="playback" class="panel" hidden>
+      <button id="play" aria-label="一時停止" title="再生 / 一時停止 (Space)">Ⅱ</button>
+      <select id="clips" aria-label="アニメーション"></select>
+      <input id="timeline" type="range" min="0" max="1" step="0.001" value="0" aria-label="再生位置">
+      <output id="time">0.0 / 0.0</output>
+      <select id="speed" aria-label="再生速度"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
+    </div>
+    <span id="info"></span>
+  </footer>
+  <script type="module">
+    import('./app.js').catch(error => {
+      console.error(error);
+      document.querySelector('#status').textContent = '起動できませんでした。WebGLとインターネット接続を確認して再読み込みしてください。';
+      document.querySelector('#status').classList.add('error');
+    });
+  </script>
+</body>
+</html>

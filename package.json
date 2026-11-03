@@ -1,0 +1,11 @@
+{
+  "name": "glbv",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 scripts/serve.py",
+    "check": "node --check app.js && node --check xr-gestures.js",
+    "start:http": "python3 scripts/serve.py --http --port 8080",
+    "test": "node --test"
+  }
+}

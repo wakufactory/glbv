@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { XRPinchGestures } from '../xr-gestures.js';
+import { XRPinchGestures } from '../html/xr-gestures.js';
 
 const identity = { x: 0, y: 0, z: 0, w: 1 };
 const reference = {};

@@ -83,7 +83,7 @@ function allowedPath(root, path) {
   return !isAbsolute(name) && !name.split(sep).some(part => part.startsWith('.'));
 }
 
-export async function createStaticServer({ root = ROOT, tls } = {}) {
+export async function createStaticServer({ root = join(ROOT, 'html'), tls } = {}) {
   root = await realpath(root);
   const handler = async (request, response) => {
     const fail = (code, message) => {

@@ -69,4 +69,4 @@ binary += b'\0' * (-len(binary) % 4)
 output = struct.pack('<III', 0x46546C67, 2, 28 + len(payload) + len(binary))
 output += struct.pack('<II', len(payload), 0x4E4F534A) + payload
 output += struct.pack('<II', len(binary), 0x004E4942) + binary
-Path(__file__).resolve().parents[1].joinpath('sample.glb').write_bytes(output)
+Path(__file__).resolve().parents[1].joinpath('html', 'sample.glb').write_bytes(output)

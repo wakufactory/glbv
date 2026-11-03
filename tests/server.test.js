@@ -84,6 +84,24 @@ test('Node HTTP and HTTPS serve viewer assets and protect private files', async 
   assert.deepEqual(await readFile(join(certDir, 'server.crt')), updated.cert);
 });
 
+test('default document root serves html assets without exposing repository files', async () => {
+  const server = await createStaticServer();
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  try {
+    for (const path of ['/', '/app.js', '/object-tree.js', '/xr-gestures.js', '/style.css', '/sample.glb']) {
+      assert.equal((await request(server, path)).status, 200, path);
+    }
+    for (const path of ['/package.json', '/README.md', '/scripts/serve.mjs', '/tests/server.test.js']) {
+      assert.equal((await request(server, path)).status, 404, path);
+    }
+  } finally {
+    await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
+  }
+});
+
 test('additional SAN names are validated before writing OpenSSL configuration', () => {
   const names = certificateNames(['viewer.local', '192.168.1.10']);
   assert.ok(names.includes('DNS:viewer.local'));

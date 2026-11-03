@@ -3,9 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "python3 scripts/serve.py",
-    "check": "node --check app.js && node --check xr-gestures.js",
-    "start:http": "python3 scripts/serve.py --http --port 8080",
+    "start": "node scripts/serve.mjs",
+    "check": "node --check app.js && node --check xr-gestures.js && node --check scripts/serve.mjs",
+    "start:http": "node scripts/serve.mjs --http --port 8080",
     "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

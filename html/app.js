@@ -20,6 +20,10 @@ const scene = new THREE.Scene();
 let background = '#000000';
 scene.background = new THREE.Color(background);
 const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.01, 1000);
+const stereo = new THREE.StereoCamera();
+stereo.aspect = 0.5;
+const viewportSize = new THREE.Vector2();
+let cameraMode = 'mono';
 camera.position.set(1.7, 1.1, 2.5);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = false;
@@ -181,7 +185,7 @@ function fit() {
   const sphere = box.getBoundingSphere(new THREE.Sphere());
   const radius = Math.max(sphere.radius, 0.01);
   const vertical = THREE.MathUtils.degToRad(camera.fov / 2);
-  const horizontal = Math.atan(Math.tan(vertical) * camera.aspect);
+  const horizontal = Math.atan(Math.tan(vertical) * camera.aspect * (cameraMode === 'mono' ? 1 : 0.5));
   const distance = radius / Math.sin(Math.min(vertical, horizontal)) * 1.15;
   controls.target.copy(sphere.center);
   camera.position.copy(sphere.center).addScaledVector(new THREE.Vector3(1, 0.6, 1.5).normalize(), distance);
@@ -302,6 +306,11 @@ for (const button of document.querySelectorAll('[data-color]')) button.onclick =
 };
 $('play').onclick = () => { playing = !playing; updatePlayButton(); };
 $('clips').onchange = selectClip;
+$('camera-mode').onchange = () => {
+  const wasStereo = cameraMode !== 'mono';
+  cameraMode = $('camera-mode').value;
+  if (wasStereo !== (cameraMode !== 'mono')) fit();
+};
 $('timeline').oninput = () => {
   if (!action) return;
   action.time = Number($('timeline').value);
@@ -396,6 +405,37 @@ $('exit-xr').onclick = () => renderer.xr.getSession()?.end().catch(error => stat
 $('ar').onclick = () => startXR('ar');
 $('vr').onclick = () => startXR('vr');
 const direction = new THREE.Vector3();
+function renderView() {
+  // WebXR supplies its own eye cameras and viewports.
+  if (renderer.xr.isPresenting) {
+    renderer.render(scene, camera);
+    return;
+  }
+  renderer.getSize(viewportSize);
+  const { x: width, y: height } = viewportSize;
+  if (cameraMode === 'mono') {
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, width, height);
+    renderer.render(scene, camera);
+    return;
+  }
+  camera.updateMatrixWorld();
+  camera.focus = Math.max(camera.position.distanceTo(controls.target), camera.near);
+  // Scale the eye separation to the view distance for arbitrary GLB units.
+  stereo.eyeSep = camera.focus / 30;
+  stereo.update(camera);
+  const left = cameraMode === 'cross' ? stereo.cameraR : stereo.cameraL;
+  const right = cameraMode === 'cross' ? stereo.cameraL : stereo.cameraR;
+  renderer.setScissorTest(true);
+  renderer.setScissor(0, 0, width / 2, height);
+  renderer.setViewport(0, 0, width / 2, height);
+  renderer.render(scene, left);
+  renderer.setScissor(width / 2, 0, width / 2, height);
+  renderer.setViewport(width / 2, 0, width / 2, height);
+  renderer.render(scene, right);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, width, height);
+}
 let lastTime;
 renderer.setAnimationLoop((time, frame) => {
   const delta = lastTime === undefined ? 0 : Math.min((time - lastTime) / 1000, 0.1);
@@ -438,7 +478,7 @@ renderer.setAnimationLoop((time, frame) => {
       if (pose) { reticle.matrix.fromArray(pose.transform.matrix); reticle.visible = true; }
     }
   } else controls.update();
-  renderer.render(scene, camera);
+  renderView();
 });
 
 // URLSearchParams decodes an encoded URL once, including its query string.

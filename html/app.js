@@ -68,6 +68,81 @@ const draco = new DRACOLoader().setDecoderPath(`${CDN}libs/draco/gltf/`);
 const ktx2 = new KTX2Loader().setTranscoderPath(`${CDN}libs/basis/`).detectSupport(renderer);
 const loader = new GLTFLoader(manager).setDRACOLoader(draco).setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
 let model, mixer, action, clips = [], playing = true, loadId = 0, statusTimer;
+const originalMaterials = new Map();
+const diagnosticMaterials = new Map();
+function localFaceNormalMaterial(options, object) {
+  const material = new THREE.MeshNormalMaterial({ ...options, flatShading: true });
+  const meshToGLB = { value: new THREE.Matrix4() };
+  const rootInverse = new THREE.Matrix4();
+  material.onBeforeRender = () => {
+    rootInverse.copy(model.matrixWorld).invert();
+    meshToGLB.value.multiplyMatrices(rootInverse, object.matrixWorld);
+  };
+  material.onBeforeCompile = shader => {
+    shader.uniforms.meshToGLB = meshToGLB;
+    // Include the GLB hierarchy and deformation, excluding viewer placement
+    // and camera transforms. Each mesh gets its own transform uniform.
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform mat4 meshToGLB;\nvarying vec3 vLocalPosition;')
+      .replace('#include <project_vertex>', `
+        vec4 glbPosition = vec4(transformed, 1.0);
+        #ifdef USE_BATCHING
+          glbPosition = batchingMatrix * glbPosition;
+        #endif
+        #ifdef USE_INSTANCING
+          glbPosition = instanceMatrix * glbPosition;
+        #endif
+        vLocalPosition = (meshToGLB * glbPosition).xyz;
+        #include <project_vertex>
+      `);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <packing>', '#include <packing>\nvarying vec3 vLocalPosition;')
+      .replace('packNormalToRGB( normal )', `packNormalToRGB(
+        normalize(cross(dFdx(vLocalPosition), dFdy(vLocalPosition)))
+        * (gl_FrontFacing ? 1.0 : -1.0)
+      )`);
+  };
+  material.customProgramCacheKey = () => 'glb-root-face-normals-v2';
+  return material;
+}
+function restoreMaterials() {
+  for (const [object, material] of originalMaterials) object.material = material;
+  originalMaterials.clear();
+  for (const variants of diagnosticMaterials.values()) {
+    for (const material of Object.values(variants)) material.dispose();
+  }
+  diagnosticMaterials.clear();
+}
+function applyRenderMode() {
+  const mode = $('render-mode').value;
+  const shaded = mode === 'shading';
+  $('lighting').hidden = !shaded;
+  if (!shaded) $('lighting').open = false;
+  for (const input of $('lighting').querySelectorAll('input')) input.disabled = !shaded;
+  if (!model) return;
+  const wireColor = new THREE.Color(background).getHSL({}).l > 0.5 ? 0x202020 : 0xeeeeee;
+  model.traverse(object => {
+    if (!object.isMesh) return;
+    if (!originalMaterials.has(object)) originalMaterials.set(object, object.material);
+    const original = originalMaterials.get(object);
+    const convert = material => {
+      if (shaded) return material;
+      let variants = diagnosticMaterials.get(material);
+      if (!variants) { variants = {}; diagnosticMaterials.set(material, variants); }
+      const key = mode === 'normals' ? `normals:${object.uuid}` : mode;
+      if (!variants[key]) {
+        const options = { side: material.side, toneMapped: false };
+        variants[key] = mode === 'wireframe'
+          ? new THREE.MeshBasicMaterial({ ...options, wireframe: true })
+          : localFaceNormalMaterial(options, object);
+      }
+      if (mode === 'wireframe') variants[key].color.setHex(wireColor);
+      return variants[key];
+    };
+    object.material = Array.isArray(original) ? original.map(convert) : convert(original);
+  });
+}
+$('render-mode').onchange = applyRenderMode;
 let modelHalfHeight = 0.5;
 let sessionMode = null, hitSource = null, pendingPlacement = false, savedView;
 const reticle = new THREE.Mesh(new THREE.RingGeometry(0.065, 0.085, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xc8ffc9, side: THREE.DoubleSide }));
@@ -147,10 +222,12 @@ async function openModel(name, readData) {
       mixer?.stopAllAction();
       mixer?.uncacheRoot(model);
       content.remove(model);
+      restoreMaterials();
       dispose(model);
     }
     model = next;
     content.add(model);
+    applyRenderMode();
     const size = bounds.getSize(new THREE.Vector3());
     const scale = 1 / Math.max(size.x, size.y, size.z, 0.000001);
     modelHalfHeight = size.y * scale / 2;
@@ -201,7 +278,7 @@ function openURL(value) {
     return response.arrayBuffer();
   });
 }
-$('open').onclick = $('choose').onclick = () => $('file').click();
+$('open').onclick = () => $('file').click();
 $('file').onchange = () => { openFile($('file').files[0]); $('file').value = ''; };
 $('demo').onclick = () => openURL('./sample.glb');
 $('fit').onclick = fit;
@@ -220,6 +297,7 @@ window.addEventListener('blur', () => { dragDepth = 0; $('drop').hidden = true; 
 for (const button of document.querySelectorAll('[data-color]')) button.onclick = () => {
   background = button.dataset.color;
   scene.background = new THREE.Color(background);
+  applyRenderMode();
   for (const swatch of document.querySelectorAll('[data-color]')) swatch.setAttribute('aria-pressed', String(swatch === button));
 };
 $('play').onclick = () => { playing = !playing; updatePlayButton(); };
@@ -367,7 +445,6 @@ renderer.setAnimationLoop((time, frame) => {
 const modelURL = new URLSearchParams(window.location.search).get('url');
 if (modelURL !== null) {
   $('open').hidden = true;
-  $('choose').hidden = true;
   if (modelURL.trim()) openURL(modelURL.trim());
   else status('urlパラメータにGLBの相対パスまたはURLを指定してください。', true);
 }

@@ -29,6 +29,11 @@
       <button class="swatch white" data-color="#f1f0ec" title="白系" aria-label="白系背景" aria-pressed="false"></button>
     </fieldset>
     <span class="divider"></span>
+    <select id="render-mode" aria-label="レンダリング方法">
+      <option value="shading">シェーディング</option>
+      <option value="wireframe">ワイヤフレーム</option>
+      <option value="normals">面法線RGB</option>
+    </select>
     <details id="lighting">
       <summary>照明</summary>
       <div class="lighting-controls panel">
@@ -48,26 +53,21 @@
   </aside>
 
   <aside id="objects" class="panel" aria-label="オブジェクトツリー" hidden>
-    <details open>
+    <details close>
       <summary class="objects-heading">オブジェクト <span>表示 ON / OFF</span></summary>
       <div id="object-tree"></div>
     </details>
   </aside>
 
   <main id="welcome">
-    <div class="file-icon" aria-hidden="true">◇</div>
-    <h1>かたちを、ひらく。</h1>
     <p>GLBファイルをここにドロップ</p>
-    <button id="choose" class="primary">ファイルを選ぶ <span>↗</span></button>
     <button id="demo" class="text-button">アニメーションのサンプルを見る</button>
-    <small>ファイルは端末内で処理されます</small>
   </main>
 
   <button id="exit-xr" class="panel">XRを終了</button>
   <div id="drop" hidden>GLBファイルをドロップ</div>
   <div id="status" role="status" aria-live="polite"></div>
   <footer>
-    <p id="hint">ドラッグで回転 <span>·</span> スクロール / ピンチでズーム</p>
     <div id="playback" class="panel" hidden>
       <button id="play" aria-label="一時停止" title="再生 / 一時停止 (Space)">Ⅱ</button>
       <select id="clips" aria-label="アニメーション"></select>

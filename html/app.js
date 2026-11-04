@@ -9,7 +9,7 @@ import { XRPinchGestures } from './xr-gestures.js';
 import { renderObjectTree } from './object-tree.js';
 
 const $ = id => document.getElementById(id);
-const CDN = 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/';
+const CDN = 'https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/';
 const renderer = new THREE.WebGLRenderer({ canvas: $('viewport'), antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);

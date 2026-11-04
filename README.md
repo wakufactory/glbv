@@ -10,7 +10,7 @@ three.jsをCDNから読み込む、静的なGLBファイルビューアーです
 npm start
 ```
 
-[https://localhost:8443](https://localhost:8443) を開きます。Node.js 22以降とOpenSSL（証明書生成時）が必要です。npmを使わず `node scripts/serve.mjs` でも起動できます。ビルドやnpmパッケージのインストールは不要です。three.jsと圧縮デコーダーの取得にはインターネット接続が必要です。
+[https://localhost:8443](https://localhost:8443) を開きます。Node.js 22以降とOpenSSL（証明書生成時）が必要です。npmを使わず `node scripts/serve.mjs` でも起動できます。ビルドやnpmパッケージのインストールは不要です。初回のthree.jsと圧縮デコーダーの取得にはインターネット接続が必要です。
 
 初回起動時にサーバー用の自己署名証明書を `.certs/` に生成します。localhost・検出したLAN IP・ホスト名を証明書に含めます。端末からは起動時に表示される `https://<LAN IP>:8443` にアクセスしてください。**クライアント証明書は要求せず、端末への証明書インストールも行いません。** ブラウザーには自己署名証明書の警告が出ます。
 
@@ -22,6 +22,16 @@ npm run start:http
 ```
 
 サーバーはNode.js標準の `https`／`http` モジュールで実装しています。証明書は再利用し、有効期限が近い場合や対象IP・ホスト名が変わった場合に再生成します。秘密鍵は所有者のみ読み書き可能にし、HTTPSサーバーは `.certs/` などの隠しファイルとディレクトリー一覧を配信しません。
+
+## PWA・オフライン利用
+
+ブラウザーの「インストール」または「ホーム画面に追加」でPWAとして利用できます。Service Workerの利用には、ブラウザーが信頼するHTTPSまたはlocalhostが必要です。自己署名証明書の警告を通過しただけでは登録できない場合があります。
+
+初回アクセス時に画面一式、サンプルGLB、three.js r187の本体・依存アドオン・Draco／Meshopt／KTX2デコーダーをキャッシュします。初回のキャッシュ完了後は、通常のブラウザー表示でもPWAでもオフラインで起動し、端末内の自己完結したGLBや同梱サンプルを表示できます。URLで指定した任意のGLBはキャッシュしないため、取得には接続が必要です。
+
+アプリ更新時は `html/sw.js` のキャッシュバージョンを変更してください。新しいキャッシュの準備後、既存のビューアーをすべて閉じて開き直すと更新され、旧キャッシュを削除します。
+
+開発時は `http://localhost:8080/?nocache=1` のように `nocache=1` を付けると、このビューアーのService Worker登録とPWAキャッシュを削除して通常のネットワーク読み込みに切り替えます。既存のService Workerがページを制御している場合は自動で一度再読み込みします。`nocache=1` を外して開くとPWAキャッシュが再び有効になります。ほかのパラメータと併用する場合は `?url=./sample.glb&nocache=1` のように指定してください。
 
 ## 操作
 
@@ -82,7 +92,7 @@ WebXR非対応の環境（Safariなどを含む）ではAR／VRボタンを無�
 
 ## 対応範囲
 
-three.js **0.180.0** に固定し、本体・アドオン・Draco／KTX2デコーダーをjsDelivrから取得します。GLTFLoader、OrbitControls、AnimationMixer、WebXRManagerを使用しています。
+three.js **0.187.0（r187）** に固定し、本体・アドオン・Draco／KTX2デコーダーをjsDelivrから取得します。GLTFLoader、OrbitControls、AnimationMixer、WebXRManagerを使用しています。
 
 自己完結したGLBを対象とし、GLBに記載された外部テクスチャ／バッファのURLは取得しません。Draco、Meshopt、KTX2圧縮に対応。外部参照のあるモデルは、リソースをGLB内へ埋め込んでから開いてください。モデルのライトに加えてスタジオ環境光を使用します。
 

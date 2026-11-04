@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
   <title>GLBV — GLB Viewer</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
   <script type="importmap">
-    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"}}
   </script>
 </head>
 <body>
@@ -83,7 +85,9 @@
     <span id="info"></span>
   </footer>
   <script type="module">
-    import('./app.js').catch(error => {
+    import('./pwa.js').then(async ({ configurePWA }) => {
+      if (await configurePWA()) await import('./app.js');
+    }).catch(error => {
       console.error(error);
       document.querySelector('#status').textContent = '起動できませんでした。WebGLとインターネット接続を確認して再読み込みしてください。';
       document.querySelector('#status').classList.add('error');

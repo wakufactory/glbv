@@ -74,7 +74,8 @@ export async function ensureCertificate(directory, names) {
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json',
+  '.json': 'application/json', '.webmanifest': 'application/manifest+json',
+  '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
   '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
 };

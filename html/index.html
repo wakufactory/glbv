@@ -41,7 +41,11 @@
       <option value="wireframe">ワイヤフレーム</option>
       <option value="normals">面法線RGB</option>
     </select>
-    <details id="lighting">
+    <details id="objects" name="settings-panel" hidden>
+      <summary>オブジェクト</summary>
+      <div id="object-tree" class="panel" aria-label="オブジェクトツリー"></div>
+    </details>
+    <details id="lighting" name="settings-panel">
       <summary>照明</summary>
       <div class="lighting-controls panel">
         <label for="environment-intensity">環境マップ</label>
@@ -57,13 +61,6 @@
     </details>
     <button id="ar" disabled title="WebXR対応状況を確認中">AR</button>
     <button id="vr" disabled title="WebXR対応状況を確認中">VR</button>
-  </aside>
-
-  <aside id="objects" class="panel" aria-label="オブジェクトツリー" hidden>
-    <details close>
-      <summary class="objects-heading">オブジェクト <span>表示 ON / OFF</span></summary>
-      <div id="object-tree"></div>
-    </details>
   </aside>
 
   <main id="welcome">

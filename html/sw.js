@@ -1,6 +1,6 @@
 // Bump this version whenever the app shell or its dependencies change.
 const CACHE_PREFIX = `glbv-${encodeURIComponent(self.registration.scope)}-`;
-const CACHE_NAME = `${CACHE_PREFIX}v2-three-187`;
+const CACHE_NAME = `${CACHE_PREFIX}v3-three-187`;
 const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.187.0/';
 const LOCAL_ASSETS = [
   './', './index.html', './style.css', './app.js', './object-tree.js',

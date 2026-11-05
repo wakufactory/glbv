@@ -124,7 +124,7 @@ function applyRenderMode() {
   if (!shaded) $('lighting').open = false;
   for (const input of $('lighting').querySelectorAll('input')) input.disabled = !shaded;
   if (!model) return;
-  const wireColor = new THREE.Color(background).getHSL({}).l > 0.5 ? 0x202020 : 0xeeeeee;
+  const wireColor = background === 'room' || new THREE.Color(background).getHSL({}).l > 0.5 ? 0x202020 : 0xeeeeee;
   model.traverse(object => {
     if (!object.isMesh) return;
     if (!originalMaterials.has(object)) originalMaterials.set(object, object.material);
@@ -149,6 +149,11 @@ function applyRenderMode() {
 $('render-mode').onchange = applyRenderMode;
 let modelHalfHeight = 0.5;
 let sessionMode = null, hitSource = null, pendingPlacement = false, savedView;
+
+function updateBackground() {
+  scene.background = sessionMode === 'ar' ? null
+    : background === 'room' ? environment : new THREE.Color(background);
+}
 const reticle = new THREE.Mesh(new THREE.RingGeometry(0.065, 0.085, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xc8ffc9, side: THREE.DoubleSide }));
 reticle.matrixAutoUpdate = false;
 reticle.visible = false;
@@ -298,11 +303,11 @@ window.addEventListener('drop', event => {
   openFile(event.dataTransfer.files[0]);
 });
 window.addEventListener('blur', () => { dragDepth = 0; $('drop').hidden = true; });
-for (const button of document.querySelectorAll('[data-color]')) button.onclick = () => {
-  background = button.dataset.color;
-  scene.background = new THREE.Color(background);
+for (const button of document.querySelectorAll('[data-background]')) button.onclick = () => {
+  background = button.dataset.background;
+  updateBackground();
   applyRenderMode();
-  for (const swatch of document.querySelectorAll('[data-color]')) swatch.setAttribute('aria-pressed', String(swatch === button));
+  for (const swatch of document.querySelectorAll('[data-background]')) swatch.setAttribute('aria-pressed', String(swatch === button));
 };
 $('play').onclick = () => { playing = !playing; updatePlayButton(); };
 $('clips').onchange = selectClip;
@@ -354,7 +359,7 @@ async function startXR(type) {
     controls.enabled = false;
     camera.position.set(0, 0, 0);
     camera.quaternion.identity();
-    scene.background = type === 'ar' ? null : new THREE.Color(background);
+    updateBackground();
     pendingPlacement = true;
     document.body.classList.add('xr');
     session.addEventListener('end', endXR, { once: true });
@@ -390,7 +395,7 @@ function endXR() {
   document.body.classList.remove('xr');
   placement.position.set(0, 0, 0); placement.quaternion.identity();
   placement.scale.setScalar(1);
-  scene.background = new THREE.Color(background);
+  updateBackground();
   if (savedView) {
     camera.position.copy(savedView.position); camera.quaternion.copy(savedView.quaternion);
     controls.target.copy(savedView.target); savedView = null;

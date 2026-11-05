@@ -1,6 +1,6 @@
 // Bump this version whenever the app shell or its dependencies change.
 const CACHE_PREFIX = `glbv-${encodeURIComponent(self.registration.scope)}-`;
-const CACHE_NAME = `${CACHE_PREFIX}v4-three-187`;
+const CACHE_NAME = `${CACHE_PREFIX}v7-three-187`;
 const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.187.0/';
 const LOCAL_ASSETS = [
   './', './index.html', './style.css', './app.js', './object-tree.js',
@@ -59,7 +59,9 @@ self.addEventListener('fetch', event => {
     url.origin === home.origin &&
     [home.pathname, `${home.pathname}index.html`].includes(url.pathname);
   if (isAppNavigation && url.searchParams.get('nocache') === '1') {
-    event.respondWith(fetch(new Request(event.request, { cache: 'no-store' })));
+    // Let the browser navigate directly. A worker-side fetch can fail before
+    // the page gets a chance to unregister this worker (for example on TLS
+    // errors). The server sends Cache-Control: no-cache for the document.
     return;
   }
   const key = isAppNavigation ? home.href : url.href;

@@ -30,6 +30,7 @@ button.swatch { width: 20px; height: 20px; border-radius: 50%; padding: 0; borde
 button.black, button.black:hover { background: #000; }
 button.gray, button.gray:hover { background: #777; }
 button.white, button.white:hover { background: #f1f0ec; }
+button.swatch.room { width: auto; padding: 0 6px; border-radius: 4px; font-size: 11px; }
 .swatch[aria-pressed="true"] { outline: 1px solid #e8edff; outline-offset: 3px; }
 #welcome { position: fixed; top: 48%; left: 50%; transform: translate(-50%, -50%); text-align: center; width: min(90vw, 450px); }
 .file-icon { margin-bottom: 25px; color: #9ba9d4; font-size: 72px; font-weight: 200; line-height: 1; }

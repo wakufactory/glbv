@@ -79,6 +79,7 @@ test('installed shell and three.js including lazy decoders work offline under a 
     assert.equal(await (await sw.get(home + path, 'navigate')).text(), home);
   }
   assert.equal(await sw.get(home + 'private.glb'), undefined);
+  assert.equal(await sw.get(home + 'reset.html', 'navigate'), undefined);
   assert.equal(await sw.get('https://example.com/model.glb'), undefined);
   assert.equal(await sw.get(home, 'cors', 'POST'), undefined);
   assert.equal(await sw.get('https://viewer.example/other/', 'navigate'), undefined);
@@ -134,12 +135,54 @@ test('nocache unregisters this viewer, clears only its caches, and reloads to re
   assert.equal(registered[0][0], scope + 'sw.js');
 });
 
-test('nocache navigations bypass the PWA cache and do not overwrite the cached home', async () => {
+test('nocache navigations use browser networking without respondWith or a worker fetch', async () => {
   const sw = worker();
   await sw.lifecycle('install');
   const home = 'https://viewer.example/tools/glbv/';
-  const url = home + '?nocache=1&url=./sample.glb';
-  const response = await sw.get(url, 'navigate');
-  assert.equal(await response.text(), url);
+  const requestsBefore = sw.requests.length;
+  for (const path of ['?nocache=1&url=./sample.glb', 'index.html?nocache=1']) {
+    assert.equal(await sw.get(home + path, 'navigate'), undefined);
+  }
+  assert.equal(sw.requests.length, requestsBefore, 'worker must not fetch the navigation');
+  sw.offline();
+  assert.equal(await sw.get(home + '?nocache=1', 'navigate'), undefined);
   assert.equal(await (await sw.get(home, 'navigate')).text(), home);
+});
+
+test('standalone recovery removes only this viewer and offers an uncached navigation', async () => {
+  const html = await readFile(new URL('../html/reset.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(html, /<(?:script|link)\b[^>]*(?:src|href)=/i);
+  const scope = 'https://viewer.example/tools/glbv/';
+  const prefix = `glbv-${encodeURIComponent(scope)}-`;
+  const elements = { reset: {}, status: {}, viewer: { hidden: true } };
+  const unregistered = [], deleted = [];
+  let fail = false;
+  const caches = {
+    async keys() { return [prefix + 'v1', prefix + 'v2', 'unrelated']; },
+    async delete(name) { deleted.push(name); },
+  };
+  vm.runInNewContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], {
+    URL, location: { href: scope + 'reset.html' },
+    document: { getElementById(id) { return elements[id]; } },
+    window: { caches }, caches,
+    navigator: { serviceWorker: {
+      async getRegistrations() {
+        if (fail) throw new Error('blocked');
+        return [scope, 'https://viewer.example/other/'].map(scope => ({
+          scope, async unregister() { unregistered.push(scope); return true; },
+        }));
+      },
+    } },
+  });
+  await elements.reset.onclick();
+  assert.deepEqual(unregistered, [scope]);
+  assert.deepEqual(deleted, [prefix + 'v1', prefix + 'v2']);
+  assert.equal(elements.viewer.href, scope + '?nocache=1');
+  assert.equal(elements.viewer.hidden, false);
+  assert.equal(elements.reset.disabled, false);
+  fail = true;
+  await elements.reset.onclick();
+  assert.equal(elements.viewer.hidden, true);
+  assert.match(elements.status.textContent, /解除できませんでした。blocked/);
+  assert.equal(elements.reset.disabled, false);
 });

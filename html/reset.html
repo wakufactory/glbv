@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GLBV キャッシュの復旧</title>
+<style>
+  body { color-scheme: light dark; font: 17px/1.7 system-ui, sans-serif; max-width: 38em; margin: 3em auto; padding: 0 1em; }
+  button, a { font: inherit; }
+  button { padding: .6em 1em; }
+  #status { white-space: pre-wrap; }
+</style>
+<h1>GLBV キャッシュの復旧</h1>
+<p>先に、ほかのGLBVのタブやウインドウを閉じてください。</p>
+<p>このビューアーのオフラインキャッシュと登録を解除します。</p>
+<button id="reset" type="button">キャッシュを解除</button>
+<p id="status" role="status"></p>
+<a id="viewer" hidden>キャッシュを使わずにGLBVを開く</a>
+<!-- Keep this page self-contained and out of the service worker asset list:
+     recovery must work even when cached HTML or modules cannot load. -->
+<script>
+  const button = document.getElementById('reset');
+  const status = document.getElementById('status');
+  const viewer = document.getElementById('viewer');
+  button.onclick = async () => {
+    button.disabled = true;
+    viewer.hidden = true;
+    status.textContent = '解除しています…';
+    try {
+      if (!navigator.serviceWorker?.getRegistrations || !window.caches) {
+        throw new Error('この接続ではキャッシュの管理機能を利用できません。Safariの設定からこのサイトのデータを削除してください。');
+      }
+      const scope = new URL('./', location.href).href;
+      for (const registration of await navigator.serviceWorker.getRegistrations()) {
+        if (registration.scope === scope) await registration.unregister();
+      }
+      const prefix = `glbv-${encodeURIComponent(scope)}-`;
+      for (const name of await caches.keys()) {
+        if (name.startsWith(prefix)) await caches.delete(name);
+      }
+      viewer.href = new URL('./?nocache=1', scope).href;
+      viewer.hidden = false;
+      status.textContent = '解除しました。下のリンクからGLBVを開いてください。';
+    } catch (error) {
+      status.textContent = `解除できませんでした。${error.message}`;
+    } finally {
+      button.disabled = false;
+    }
+  };
+</script>
+</html>

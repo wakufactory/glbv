@@ -91,7 +91,7 @@ test('default document root serves html assets without exposing repository files
     server.listen(0, '127.0.0.1', resolve);
   });
   try {
-    for (const path of ['/', '/app.js', '/object-tree.js', '/xr-gestures.js', '/style.css', '/sample.glb', '/sw.js', '/icons/icon-192.png', '/icons/icon-512.png']) {
+    for (const path of ['/', '/reset.html', '/app.js', '/object-tree.js', '/xr-gestures.js', '/style.css', '/sample.glb', '/sw.js', '/icons/icon-192.png', '/icons/icon-512.png']) {
       assert.equal((await request(server, path)).status, 200, path);
     }
     const manifest = await request(server, '/manifest.webmanifest');

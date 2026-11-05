@@ -31,7 +31,7 @@ controls.minDistance = 0.05;
 controls.maxDistance = 100;
 const pmrem = new THREE.PMREMGenerator(renderer);
 const room = new RoomEnvironment();
-const environment = pmrem.fromScene(room).texture;
+const environment = pmrem.fromScene(room, 0, 0.1, 100, { size: 1024 }).texture;
 scene.environment = environment;
 scene.environmentIntensity = 0.35;
 room.dispose();

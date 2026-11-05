@@ -72,7 +72,7 @@ select { background: #25262c; padding: 0 6px; }
 .object-row.ancestor-hidden { opacity: .45; }
 .object-row.node-hidden span { color: #92959f; }
 body.xr .toolbar, body.xr .settings, body.xr footer, body.xr #welcome, body.xr #objects { display: none; }
-@media (max-width: 1200px) {
+@media (max-width: 1000px) {
   .toolbar { left: 12px; top: max(12px, env(safe-area-inset-top)); padding-left: 12px; gap: 8px; max-width: calc(100vw - 24px); right: 12px; }
   #filename { flex: 1; max-width: none; }
   .settings { top: max(77px, calc(env(safe-area-inset-top) + 65px)); right: 12px; max-width: calc(100vw - 24px); gap: 2px; flex-wrap: wrap; justify-content: flex-end; }

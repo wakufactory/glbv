@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "check": "node --check html/app.js && node --check html/object-tree.js && node --check html/xr-gestures.js && node --check html/pwa.js && node --check html/sw.js && node --check scripts/serve.mjs",
+    "check": "node --check html/app.js && node --check html/object-tree.js && node --check html/xr-gestures.js && node --check html/room-environment.js && node --check html/pwa.js && node --check html/sw.js && node --check scripts/serve.mjs",
     "start:http": "node scripts/serve.mjs --http --port 8080",
     "test": "node --test"
   },

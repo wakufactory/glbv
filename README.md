@@ -90,6 +90,14 @@ WebXR非対応の環境（Safariなどを含む）ではAR／VRボタンを無�
 
 ハンドトラッキング非対応の端末・ブラウザーでもVR表示は利用できますが、これらのジェスチャー操作はできません。
 
+## 環境マップのカスタマイズ
+
+環境マップは、three.js r187から取り込んだ `html/room-environment.js` の `RoomEnvironment` で生成します。このファイルを編集すると、部屋の材質・箱の配置・主照明の色や強度・光る面の位置や寸法を変更できます。初期設定は公式r187と同じです。
+
+`mainLight` は主照明、`roomMaterial`／`boxMaterial` は壁と箱の材質、`light1`〜`light6` は映り込みを作る光る面です。光る面の明るさは `createAreaLightMaterial()` の引数、色は同関数の `emissive`、位置と大きさは各面の `position`／`scale` で指定します。変更後に再読み込みすると環境マップを再生成します。開発時は `?nocache=1` を使用してください。PWAへ配信する際は `html/sw.js` のキャッシュバージョンも更新してください。
+
+取り込んだコードのMITライセンスは `html/licenses/three-LICENSE.txt` にあります。
+
 ## 対応範囲
 
 three.js **0.187.0（r187）** に固定し、本体・アドオン・Draco／KTX2デコーダーをjsDelivrから取得します。GLTFLoader、OrbitControls、AnimationMixer、WebXRManagerを使用しています。

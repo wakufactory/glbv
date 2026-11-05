@@ -68,6 +68,8 @@ test('installed shell and three.js including lazy decoders work offline under a 
   assert.ok(urls.some(url => url.endsWith('/build/three.core.js')));
   assert.ok(urls.some(url => url.endsWith('/draco/gltf/draco_decoder.wasm')));
   assert.ok(urls.some(url => url.endsWith('/basis/basis_transcoder.wasm')));
+  assert.ok(urls.includes('https://viewer.example/tools/glbv/room-environment.js'));
+  assert.ok(!urls.some(url => url.includes('/examples/jsm/environments/RoomEnvironment.js')));
   sw.offline();
   for (const url of urls) {
     assert.equal(await (await sw.get(url)).text(), url);
@@ -86,7 +88,7 @@ test('activation cleans only this app scope and failed installs reject', async (
   const sw = worker();
   await sw.lifecycle('install');
   const current = [...sw.stores.keys()][0];
-  const prefix = current.slice(0, current.lastIndexOf('v2-three-187'));
+  const prefix = current.replace(/v\d+-three-\d+$/, '');
   sw.stores.set(prefix + 'old', new Map());
   sw.stores.set('unrelated-app', new Map());
   await sw.lifecycle('activate');

@@ -98,6 +98,10 @@ test('default document root serves html assets without exposing repository files
     assert.equal(manifest.status, 200);
     assert.equal(manifest.headers['content-type'], 'application/manifest+json');
     assert.equal(JSON.parse(manifest.body).display, 'standalone');
+    const roomEnvironment = await request(server, '/room-environment.js');
+    assert.equal(roomEnvironment.status, 200);
+    assert.match(roomEnvironment.headers['content-type'], /javascript/);
+    assert.equal((await request(server, '/licenses/three-LICENSE.txt')).status, 200);
     for (const path of ['/package.json', '/README.md', '/scripts/serve.mjs', '/tests/server.test.js']) {
       assert.equal((await request(server, path)).status, 404, path);
     }

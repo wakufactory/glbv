@@ -1,10 +1,11 @@
 // Bump this version whenever the app shell or its dependencies change.
 const CACHE_PREFIX = `glbv-${encodeURIComponent(self.registration.scope)}-`;
-const CACHE_NAME = `${CACHE_PREFIX}v3-three-187`;
+const CACHE_NAME = `${CACHE_PREFIX}v4-three-187`;
 const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.187.0/';
 const LOCAL_ASSETS = [
   './', './index.html', './style.css', './app.js', './object-tree.js',
   './xr-gestures.js', './pwa.js', './sample.glb', './manifest.webmanifest',
+  './room-environment.js', './licenses/three-LICENSE.txt',
   './icons/icon-192.png', './icons/icon-512.png',
 ].map(path => new URL(path, self.registration.scope).href);
 // Include transitive module imports and lazy-loaded compression decoders so
@@ -13,7 +14,6 @@ const THREE_ASSETS = [
   'build/three.module.js',
   'build/three.core.js',
   'examples/jsm/controls/OrbitControls.js',
-  'examples/jsm/environments/RoomEnvironment.js',
   'examples/jsm/loaders/GLTFLoader.js',
   'examples/jsm/loaders/DRACOLoader.js',
   'examples/jsm/loaders/KTX2Loader.js',

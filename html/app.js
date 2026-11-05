@@ -75,20 +75,28 @@ let model, mixer, action, clips = [], playing = true, loadId = 0, statusTimer;
 const originalMaterials = new Map();
 const diagnosticMaterials = new Map();
 function localFaceNormalMaterial(options, object) {
-  const material = new THREE.MeshNormalMaterial({ ...options, flatShading: true });
   const meshToGLB = { value: new THREE.Matrix4() };
   const rootInverse = new THREE.Matrix4();
-  material.onBeforeRender = () => {
-    rootInverse.copy(model.matrixWorld).invert();
-    meshToGLB.value.multiplyMatrices(rootInverse, object.matrixWorld);
-  };
-  material.onBeforeCompile = shader => {
-    shader.uniforms.meshToGLB = meshToGLB;
-    // Include the GLB hierarchy and deformation, excluding viewer placement
-    // and camera transforms. Each mesh gets its own transform uniform.
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform mat4 meshToGLB;\nvarying vec3 vLocalPosition;')
-      .replace('#include <project_vertex>', `
+  const material = new THREE.ShaderMaterial({
+    ...options,
+    lights: false,
+    toneMapped: false,
+    uniforms: { meshToGLB },
+    vertexShader: `
+      #include <common>
+      #include <batching_pars_vertex>
+      #include <morphtarget_pars_vertex>
+      #include <skinning_pars_vertex>
+      #include <logdepthbuf_pars_vertex>
+      uniform mat4 meshToGLB;
+      varying vec3 vLocalPosition;
+      void main() {
+        #include <batching_vertex>
+        #include <morphinstance_vertex>
+        #include <begin_vertex>
+        #include <morphtarget_vertex>
+        #include <skinbase_vertex>
+        #include <skinning_vertex>
         vec4 glbPosition = vec4(transformed, 1.0);
         #ifdef USE_BATCHING
           glbPosition = batchingMatrix * glbPosition;
@@ -98,17 +106,29 @@ function localFaceNormalMaterial(options, object) {
         #endif
         vLocalPosition = (meshToGLB * glbPosition).xyz;
         #include <project_vertex>
-      `);
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <packing>', '#include <packing>\nvarying vec3 vLocalPosition;')
-      .replace('packNormalToRGB( normal )', `packNormalToRGB(
-        normalize(cross(dFdx(vLocalPosition), dFdy(vLocalPosition)))
-        * (gl_FrontFacing ? 1.0 : -1.0)
-      )`);
+        #include <logdepthbuf_vertex>
+      }
+    `,
+    fragmentShader: `
+      #include <logdepthbuf_pars_fragment>
+      varying vec3 vLocalPosition;
+      void main() {
+        #include <logdepthbuf_fragment>
+        vec3 normal = normalize(cross(dFdx(vLocalPosition), dFdy(vLocalPosition)))
+          * (gl_FrontFacing ? 1.0 : -1.0);
+        gl_FragColor = vec4(normal * 0.5 + 0.5, 1.0);
+      }
+    `,
+  });
+  // Each mesh keeps its own transform; remove viewer placement and retain the
+  // GLB hierarchy and animation. Deformation is applied in the vertex shader.
+  material.onBeforeRender = () => {
+    rootInverse.copy(model.matrixWorld).invert();
+    meshToGLB.value.multiplyMatrices(rootInverse, object.matrixWorld);
   };
-  material.customProgramCacheKey = () => 'glb-root-face-normals-v2';
   return material;
 }
+
 function restoreMaterials() {
   for (const [object, material] of originalMaterials) object.material = material;
   originalMaterials.clear();

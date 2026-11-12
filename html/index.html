@@ -22,6 +22,7 @@
     <input id="file" type="file" accept=".glb" hidden>
     <span id="filename">GLB Viewer</span>
     <button id="fit" title="モデル全体を表示 (F)" aria-label="モデル全体を表示" disabled>⛶</button>
+      <span id="info"></span>
   </header>
 
   <aside class="settings panel" aria-label="表示設定">
@@ -33,10 +34,13 @@
     </fieldset>
     <span class="divider"></span>
     <select id="camera-mode" aria-label="カメラモード" title="カメラモード">
-      <option value="mono">通常</option>
-      <option value="parallel">立体視（平行法）</option>
-      <option value="cross">立体視（交差法）</option>
+      <option value="mono">単眼</option>
+      <option value="parallel">平行法</option>
+      <option value="cross">交差法</option>
     </select>
+    <label id="stereo-strength-control" hidden>立体感 <output id="stereo-strength-value" for="stereo-strength">1.0</output>
+      <input id="stereo-strength" type="range" min="0" max="3" step="0.1" value="1" aria-label="立体感の強さ">
+    </label>
     <select id="render-mode" aria-label="レンダリング方法">
       <option value="shading">シェーディング</option>
       <option value="wireframe">ワイヤフレーム</option>
@@ -80,7 +84,7 @@
       <output id="time">0.0 / 0.0</output>
       <select id="speed" aria-label="再生速度"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
     </div>
-    <span id="info"></span>
+
   </footer>
   <script type="module">
     import('./pwa.js').then(async ({ configurePWA }) => {

@@ -9,7 +9,7 @@ export function renderObjectTree(container, root) {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = object.visible;
-    const name = object.name || `${object.type || 'Node'} ${index + 1}`;
+    const name = object === root ? 'root' : object.name || `${object.type || 'Node'} ${index + 1}`;
     checkbox.setAttribute('aria-label', `${name} の表示`);
     const label = document.createElement('label');
     const text = document.createElement('span');

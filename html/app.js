@@ -334,7 +334,11 @@ $('clips').onchange = selectClip;
 $('camera-mode').onchange = () => {
   const wasStereo = cameraMode !== 'mono';
   cameraMode = $('camera-mode').value;
+  $('stereo-strength-control').hidden = cameraMode === 'mono';
   if (wasStereo !== (cameraMode !== 'mono')) fit();
+};
+$('stereo-strength').oninput = () => {
+  $('stereo-strength-value').value = Number($('stereo-strength').value).toFixed(1);
 };
 $('timeline').oninput = () => {
   if (!action) return;
@@ -447,7 +451,7 @@ function renderView() {
   camera.updateMatrixWorld();
   camera.focus = Math.max(camera.position.distanceTo(controls.target), camera.near);
   // Scale the eye separation to the view distance for arbitrary GLB units.
-  stereo.eyeSep = camera.focus / 30;
+  stereo.eyeSep = camera.focus * 0.035 * Number($('stereo-strength').value);
   stereo.update(camera);
   const left = cameraMode === 'cross' ? stereo.cameraR : stereo.cameraL;
   const right = cameraMode === 'cross' ? stereo.cameraL : stereo.cameraR;

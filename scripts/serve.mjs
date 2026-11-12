@@ -138,7 +138,7 @@ export async function createStaticServer({ root = join(ROOT, 'html'), tls } = {}
 
 async function main() {
   const { values } = parseArgs({ options: {
-    port: { type: 'string', default: '8443' }, bind: { type: 'string', default: '0.0.0.0' },
+    port: { type: 'string', default: '8442' }, bind: { type: 'string', default: '0.0.0.0' },
     san: { type: 'string', multiple: true, default: [] }, http: { type: 'boolean', default: false },
     help: { type: 'boolean', short: 'h', default: false },
   } });

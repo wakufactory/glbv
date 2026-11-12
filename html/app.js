@@ -309,7 +309,7 @@ function openURL(value) {
 }
 $('open').onclick = () => $('file').click();
 $('file').onchange = () => { openFile($('file').files[0]); $('file').value = ''; };
-$('demo').onclick = () => openURL('./sample.glb');
+$('demo').onclick = () => openURL('./clock2-6.glb');
 $('fit').onclick = fit;
 let dragDepth = 0;
 window.addEventListener('dragenter', event => {

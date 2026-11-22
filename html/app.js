@@ -9,6 +9,9 @@ import { XRPinchGestures } from './xr-gestures.js';
 import { renderObjectTree } from './object-tree.js';
 
 const $ = id => document.getElementById(id);
+const params = new URLSearchParams(window.location.search);
+const debugXR = params.get('debugXR') === '1';
+const AR_DRAG_THRESHOLD = 0.035; // Radians, equivalent to 1 cm of pinch movement.
 const CDN = 'https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/';
 const renderer = new THREE.WebGLRenderer({ canvas: $('viewport'), antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -60,6 +63,7 @@ scene.add(placement);
 const content = new THREE.Group();
 placement.add(content);
 const gestures = new XRPinchGestures();
+const handSelections = new WeakMap();
 const gestureAxis = new THREE.Vector3();
 const gestureRotation = new THREE.Quaternion();
 const manager = new THREE.LoadingManager();
@@ -358,6 +362,11 @@ window.addEventListener('resize', () => {
 });
 
 const xrSupport = { ar: false, vr: false };
+let xrStartup;
+if (debugXR) {
+  renderer.domElement.addEventListener('webglcontextlost', () => xrStartup?.log('WebGL context lost'));
+  renderer.domElement.addEventListener('webglcontextrestored', () => xrStartup?.log('WebGL context restored'));
+}
 function updateXRButtons() {
   for (const type of ['ar', 'vr']) {
     $(type).disabled = !xrSupport[type] || !model;
@@ -375,8 +384,20 @@ async function detectXR() {
 detectXR();
 async function startXR(type) {
   let session;
+  const startedAt = debugXR ? performance.now() : 0;
+  const trace = debugXR ? {
+    receivedFrame: false,
+    log(stage) {
+      console.info(`[GLBV XR ${type.toUpperCase()}] +${(performance.now() - startedAt).toFixed(1)} ms ${stage}`);
+    },
+  } : null;
   try {
-    session = await navigator.xr.requestSession(`immersive-${type}`, { optionalFeatures: type === 'ar' ? ['local-floor', 'hit-test', 'dom-overlay'] : ['local-floor', 'hand-tracking'], ...(type === 'ar' ? { domOverlay: { root: document.body } } : {}) });
+    trace?.log('requestSession started');
+    session = await navigator.xr.requestSession(`immersive-${type}`, {
+      optionalFeatures: ['local-floor', 'hand-tracking', ...(type === 'ar' ? ['hit-test', 'dom-overlay'] : [])],
+      ...(type === 'ar' ? { domOverlay: { root: document.body } } : {}),
+    });
+    trace?.log('requestSession resolved');
     savedView = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), target: controls.target.clone() };
     sessionMode = type;
     gestures.reset();
@@ -388,17 +409,27 @@ async function startXR(type) {
     document.body.classList.add('xr');
     session.addEventListener('end', endXR, { once: true });
     session.addEventListener('visibilitychange', () => gestures.reset());
-    session.addEventListener('select', () => {
-      if (type === 'ar' && reticle.visible) {
+    if (type === 'ar') {
+      session.addEventListener('selectstart', ({ inputSource }) => {
+        if (inputSource.hand) handSelections.set(inputSource, { yaw: 0, pitch: 0, manipulated: false });
+      });
+      session.addEventListener('selectend', ({ inputSource }) => handSelections.delete(inputSource));
+      session.addEventListener('select', ({ inputSource }) => {
+        if (!inputSource.hand || !reticle.visible || handSelections.get(inputSource)?.manipulated) return;
         placement.position.setFromMatrixPosition(reticle.matrix);
-        placement.position.y += modelHalfHeight;
+        placement.position.y += modelHalfHeight * placement.scale.y;
         placement.quaternion.identity();
-        status('配置しました。タップで再配置できます。', false, 3000);
-      }
-    });
+        pendingPlacement = false;
+        status('配置しました。面に向けてピンチすると再配置できます。', false, 3000);
+      });
+    }
+    xrStartup = trace;
+    trace?.log('setSession started');
     await renderer.xr.setSession(session);
+    trace?.log('setSession resolved');
     renderer.xr.getReferenceSpace()?.addEventListener('reset', () => gestures.reset());
-    status(type === 'ar' ? '面に向けてタップすると配置できます。面が見つからない場合は前方に表示します。' : '', false, 7000);
+    const gestureHelp = '片手のピンチ移動で回転 · 両手のピンチで拡縮';
+    status(type === 'ar' ? `面に向けてピンチで配置 · ${gestureHelp}` : gestureHelp, false, 7000);
     if (type === 'ar' && session.requestHitTestSource) {
       try {
         const space = await session.requestReferenceSpace('viewer');
@@ -408,11 +439,13 @@ async function startXR(type) {
       } catch { /* Front-of-view placement remains available without hit testing. */ }
     }
   } catch (error) {
+    trace?.log('XR startup failed');
     if (session) { await session.end().catch(() => {}); endXR(); }
     status(`XRを開始できませんでした。${error.message}`, true, 8000);
   }
 }
 function endXR() {
+  xrStartup = null;
   hitSource?.cancel(); hitSource = null;
   sessionMode = null; pendingPlacement = false; reticle.visible = false;
   gestures.reset();
@@ -431,6 +464,7 @@ function endXR() {
   controls.update(); status();
 }
 $('exit-xr').onclick = () => renderer.xr.getSession()?.end().catch(error => status(error.message, true));
+$('exit-xr').addEventListener('beforexrselect', event => event.preventDefault());
 $('ar').onclick = () => startXR('ar');
 $('vr').onclick = () => startXR('vr');
 const direction = new THREE.Vector3();
@@ -467,6 +501,11 @@ function renderView() {
 }
 let lastTime;
 renderer.setAnimationLoop((time, frame) => {
+  const trace = frame ? xrStartup : null;
+  if (trace && !trace.receivedFrame) {
+    trace.receivedFrame = true;
+    trace.log('first XR frame');
+  }
   const delta = lastTime === undefined ? 0 : Math.min((time - lastTime) / 1000, 0.1);
   lastTime = time;
   if (mixer) {
@@ -474,6 +513,7 @@ renderer.setAnimationLoop((time, frame) => {
     $('timeline').value = action.time;
     $('time').textContent = `${action.time.toFixed(1)} / ${action.getClip().duration.toFixed(1)}`;
   }
+  let firstPlacedRender = false;
   if (frame) {
     const reference = renderer.xr.getReferenceSpace();
     const viewerPose = frame.getViewerPose(reference);
@@ -485,11 +525,18 @@ renderer.setAnimationLoop((time, frame) => {
         direction.y = 0; direction.normalize();
         placement.position.set(p.x + direction.x * 1.7, p.y - 0.25, p.z + direction.z * 1.7);
         pendingPlacement = false;
+        firstPlacedRender = Boolean(trace);
       }
     }
-    if (sessionMode === 'vr' && model) {
+    if (model) {
       const gesture = gestures.update(frame, reference, viewerPose?.transform.orientation);
       if (gesture?.type === 'rotate') {
+        const selection = sessionMode === 'ar' && handSelections.get(gesture.source);
+        if (selection && !selection.manipulated) {
+          selection.yaw += gesture.yaw;
+          selection.pitch += gesture.pitch;
+          selection.manipulated = Math.hypot(selection.yaw, selection.pitch) >= AR_DRAG_THRESHOLD;
+        }
         gestureAxis.copy(gesture.up);
         gestureRotation.setFromAxisAngle(gestureAxis, gesture.yaw);
         placement.quaternion.premultiply(gestureRotation);
@@ -497,6 +544,10 @@ renderer.setAnimationLoop((time, frame) => {
         gestureRotation.setFromAxisAngle(gestureAxis, gesture.pitch);
         placement.quaternion.premultiply(gestureRotation).normalize();
       } else if (gesture?.type === 'zoom') {
+        for (const source of gesture.sources) {
+          const selection = handSelections.get(source);
+          if (selection) selection.manipulated = true;
+        }
         placement.scale.setScalar(THREE.MathUtils.clamp(placement.scale.x * gesture.factor, 0.1, 5));
       }
     }
@@ -507,11 +558,16 @@ renderer.setAnimationLoop((time, frame) => {
       if (pose) { reticle.matrix.fromArray(pose.transform.matrix); reticle.visible = true; }
     }
   } else controls.update();
+  if (firstPlacedRender) trace.log('first render with viewer pose started');
   renderView();
+  if (firstPlacedRender) {
+    trace.log('first render with viewer pose returned');
+    xrStartup = null;
+  }
 });
 
 // URLSearchParams decodes an encoded URL once, including its query string.
-const modelURL = new URLSearchParams(window.location.search).get('url');
+const modelURL = params.get('url');
 if (modelURL !== null) {
   $('open').hidden = true;
   if (modelURL.trim()) openURL(modelURL.trim());

@@ -53,7 +53,7 @@ export class XRPinchGestures {
       this.gesture = { sources: hands.map(hand => hand.source), span };
       if (!sameHands || span < MIN_HAND_DISTANCE || previous.span < MIN_HAND_DISTANCE ||
           Math.abs(span - previous.span) > MAX_FRAME_MOVEMENT) return null;
-      return { type: 'zoom', factor: span / previous.span };
+      return { type: 'zoom', sources: this.gesture.sources, factor: span / previous.span };
     }
     const position = hands[0].position;
     if (!sameHands) {
@@ -69,7 +69,7 @@ export class XRPinchGestures {
     this.gesture.position = position;
     if (travel > MAX_FRAME_MOVEMENT) return null;
     const dot = axis => delta.x * axis.x + delta.y * axis.y + delta.z * axis.z;
-    return { type: 'rotate', yaw: dot(previous.right) * ROTATION_PER_METER,
+    return { type: 'rotate', source: hands[0].source, yaw: dot(previous.right) * ROTATION_PER_METER,
       pitch: -dot(previous.up) * ROTATION_PER_METER, right: previous.right, up: previous.up };
   }
 }

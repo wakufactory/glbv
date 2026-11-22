@@ -4,6 +4,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { createVRMAnimationClip, VRMAnimationLoaderPlugin, VRMLookAtQuaternionProxy } from '@pixiv/three-vrm-animation';
 import { RoomEnvironment } from './room-environment.js';
 import { XRPinchGestures } from './xr-gestures.js';
 import { renderObjectTree } from './object-tree.js';
@@ -67,15 +69,17 @@ const handSelections = new WeakMap();
 const gestureAxis = new THREE.Vector3();
 const gestureRotation = new THREE.Quaternion();
 const manager = new THREE.LoadingManager();
-// Local GLBs must be self-contained. Never fetch a URI embedded in an opened file.
+// Opened files must be self-contained. Never fetch a URI embedded in a file.
 manager.setURLModifier(url => {
   if (/^(data:|blob:)/i.test(url)) return url;
-  throw new Error('外部ファイルを参照しています。テクスチャを埋め込んだGLBを使用してください。');
+  throw new Error('外部ファイルを参照しています。テクスチャやバッファを埋め込んでください。');
 });
 const draco = new DRACOLoader().setDecoderPath(`${CDN}libs/draco/gltf/`);
 const ktx2 = new KTX2Loader().setTranscoderPath(`${CDN}libs/basis/`).detectSupport(renderer);
 const loader = new GLTFLoader(manager).setDRACOLoader(draco).setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
-let model, mixer, action, clips = [], playing = true, loadId = 0, statusTimer;
+loader.register(parser => new VRMLoaderPlugin(parser));
+loader.register(parser => new VRMAnimationLoaderPlugin(parser));
+let model, vrm, mixer, action, embeddedClips = [], clips = [], playing = true, loadId = 0, statusTimer;
 const originalMaterials = new Map();
 const diagnosticMaterials = new Map();
 function localFaceNormalMaterial(options, object) {
@@ -236,29 +240,98 @@ function selectClip() {
   playing = true;
   updatePlayButton();
 }
-async function openModel(name, readData) {
+function setClips(root, nextClips) {
+  mixer?.stopAllAction();
+  mixer?.uncacheRoot(mixer.getRoot());
+  clips = nextClips;
+  mixer = clips.length ? new THREE.AnimationMixer(root) : null;
+  action = null;
+  $('clips').replaceChildren(...clips.map((clip, i) => new Option(clip.name || `Animation ${i + 1}`, i)));
+  $('playback').hidden = !clips.length;
+  $('animation-count').textContent = clips.length ? ` · ${clips.length} animations` : '';
+  if (mixer) selectClip();
+}
+async function readVRMA(readData, target, id) {
+  status('VRMAを読み込み中…');
+  const data = await readData();
+  if (id !== loadId) return;
+  const gltf = await loader.parseAsync(data, '');
+  let proxy;
+  try {
+    if (id !== loadId) return;
+    const animations = gltf.userData.vrmAnimations;
+    if (!animations?.length) throw new Error('VRMAに再生できるアニメーションがありません。');
+    if (target.lookAt && !target.scene.children.some(object => object instanceof VRMLookAtQuaternionProxy)) {
+      proxy = new VRMLookAtQuaternionProxy(target.lookAt);
+      proxy.name = 'VRMLookAtQuaternionProxy';
+      target.scene.add(proxy);
+    }
+    const animationClips = animations.map((animation, i) => {
+      const clip = createVRMAnimationClip(animation, target);
+      clip.name = gltf.animations[i]?.name || `VRMA ${i + 1}`;
+      return clip;
+    }).filter(clip => clip.tracks.length);
+    if (!animationClips.length) throw new Error('このVRMに適用できるVRMAのトラックがありません。');
+    return animationClips;
+  } catch (error) {
+    proxy?.removeFromParent();
+    throw error;
+  } finally {
+    dispose(gltf.scene);
+  }
+}
+async function replaceVRMA(file) {
+  if (!vrm) return status('VRMを開いてからVRMAを指定してください。', true, 6000);
   const id = ++loadId;
-  status('GLBを読み込み中…');
+  try {
+    const animationClips = await readVRMA(() => file.arrayBuffer(), vrm, id);
+    if (id !== loadId) return;
+    setClips(model, [...animationClips, ...embeddedClips]);
+    status();
+  } catch (error) {
+    console.error(error);
+    if (id === loadId) status(`VRMAを読み込めませんでした。${error.message || 'ファイルを確認してください。'}`, true);
+  }
+}
+async function openModel(name, readData, { expectVRM = false, readAnimation } = {}) {
+  const id = ++loadId;
+  let next;
+  status('モデルを読み込み中…');
   try {
     const data = await readData();
     if (id !== loadId) return;
     const gltf = await loader.parseAsync(data, '');
-    if (id !== loadId) { dispose(gltf.scene); return; }
-    const next = gltf.scene;
+    next = gltf.scene;
+    if (id !== loadId) return;
+    const nextVRM = gltf.userData.vrm;
+    if (!nextVRM && readAnimation) throw new Error('VRMAと一緒にVRMモデルを指定してください。');
+    if (!nextVRM && expectVRM) throw new Error('VRMモデルを確認してください。');
+    if (nextVRM) {
+      VRMUtils.rotateVRM0(nextVRM);
+      next.traverse(object => {
+        if (object.isSkinnedMesh) object.frustumCulled = false;
+      });
+    }
     next.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(next);
     if (bounds.isEmpty() || !Number.isFinite(bounds.min.length() + bounds.max.length())) {
-      dispose(next);
       throw new Error('表示できる形状がありません。');
     }
+    let animationClips = [];
+    if (readAnimation) {
+      animationClips = await readVRMA(readAnimation, nextVRM, id);
+      if (id !== loadId) return;
+    }
+    embeddedClips = gltf.animations;
+    setClips(next, [...animationClips, ...embeddedClips]);
     if (model) {
-      mixer?.stopAllAction();
-      mixer?.uncacheRoot(model);
       content.remove(model);
       restoreMaterials();
       dispose(model);
     }
     model = next;
+    next = null;
+    vrm = nextVRM;
     content.add(model);
     applyRenderMode();
     const size = bounds.getSize(new THREE.Vector3());
@@ -266,17 +339,12 @@ async function openModel(name, readData) {
     modelHalfHeight = size.y * scale / 2;
     content.scale.setScalar(scale);
     content.position.copy(bounds.getCenter(new THREE.Vector3())).multiplyScalar(-scale);
-    clips = gltf.animations;
-    mixer = clips.length ? new THREE.AnimationMixer(model) : null;
-    action = null;
-    $('clips').replaceChildren(...clips.map((clip, i) => new Option(clip.name || `Animation ${i + 1}`, i)));
-    $('playback').hidden = !clips.length;
-    if (mixer) selectClip();
     renderObjectTree($('object-tree'), model);
     $('objects').hidden = false;
     $('welcome').hidden = true;
     $('filename').textContent = name;
     $('filename').title = name;
+    $('open').hidden = params.has('url') && !vrm;
     $('fit').disabled = false;
     let meshes = 0, triangles = 0;
     model.traverse(object => {
@@ -285,46 +353,67 @@ async function openModel(name, readData) {
         triangles += ((object.geometry.index?.count ?? object.geometry.attributes.position?.count ?? 0) / 3) * (object.isInstancedMesh ? object.count : 1);
       }
     });
-    $('info').textContent = `${meshes.toLocaleString()} meshes · ${Math.round(triangles).toLocaleString()} triangles${clips.length ? ` · ${clips.length} animations` : ''}`;
+    $('mesh-info').textContent = `${meshes.toLocaleString()} meshes · ${Math.round(triangles).toLocaleString()} triangles`;
     fit();
     updateXRButtons();
     status();
   } catch (error) {
     console.error(error);
-    if (id === loadId) status(`読み込めませんでした。${error.message || 'GLBファイルを確認してください。'}`, true);
+    if (id === loadId) status(`読み込めませんでした。${error.message || 'ファイルを確認してください。'}`, true);
+  } finally {
+    if (next) dispose(next);
   }
 }
-function openFile(file) {
-  if (!file) return;
-  if (!/\.glb$/i.test(file.name)) return status('拡張子 .glb のファイルを選んでください。', true, 6000);
-  return openModel(file.name, () => file.arrayBuffer());
+function openFiles(fileList) {
+  const files = Array.from(fileList);
+  if (!files.length) return;
+  const models = files.filter(file => /\.(glb|vrm)$/i.test(file.name));
+  const animations = files.filter(file => /\.vrma$/i.test(file.name));
+  if (files.length === 1 && animations.length === 1) return replaceVRMA(animations[0]);
+  if (models.length !== 1 || animations.length > 1 || files.length !== models.length + animations.length) {
+    return status('GLBまたはVRMを1つ選んでください。VRMはVRMAを1つ同時に指定できます。', true, 6000);
+  }
+  const [file] = models;
+  const [animation] = animations;
+  const expectVRM = /\.vrm$/i.test(file.name);
+  if (animation && !expectVRM) return status('VRMAと一緒にVRMモデルを選んでください。', true, 6000);
+  return openModel(file.name, () => file.arrayBuffer(), {
+    expectVRM,
+    readAnimation: animation && (() => animation.arrayBuffer()),
+  });
 }
-function openURL(value) {
-  return openModel(value, async () => {
-    const url = new URL(value, window.location.href);
-    if (!['http:', 'https:'].includes(url.protocol)) {
-      throw new Error('URLはHTTPまたはHTTPSで指定してください。');
-    }
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`GLBの取得に失敗しました (HTTP ${response.status})。`);
-    // URL endpoints need not have a .glb extension (e.g. signed download URLs).
-    return response.arrayBuffer();
+async function readURL(value, label) {
+  const url = new URL(value, window.location.href);
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    throw new Error('URLはHTTPまたはHTTPSで指定してください。');
+  }
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${label}の取得に失敗しました (HTTP ${response.status})。`);
+  return response.arrayBuffer();
+}
+function openURL(value, animationURL) {
+  return openModel(value, () => readURL(value, 'モデル'), {
+    readAnimation: animationURL && (() => readURL(animationURL, 'VRMA')),
   });
 }
 $('open').onclick = () => $('file').click();
-$('file').onchange = () => { openFile($('file').files[0]); $('file').value = ''; };
+$('file').onchange = () => { openFiles($('file').files); $('file').value = ''; };
 $('demo').onclick = () => openURL('./clock2-6.glb');
 $('fit').onclick = fit;
 let dragDepth = 0;
 window.addEventListener('dragenter', event => {
   event.preventDefault();
-  if (event.dataTransfer?.types.includes('Files')) { dragDepth++; $('drop').hidden = false; }
+  if (event.dataTransfer?.types.includes('Files')) {
+    dragDepth++;
+    $('drop').textContent = vrm ? 'GLB／VRM／VRMAをドロップ' : 'GLB／VRM（＋VRMA）をドロップ';
+    $('drop').hidden = false;
+  }
 });
 window.addEventListener('dragover', event => event.preventDefault());
 window.addEventListener('dragleave', event => { event.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; $('drop').hidden = true; } });
 window.addEventListener('drop', event => {
   event.preventDefault(); dragDepth = 0; $('drop').hidden = true;
-  openFile(event.dataTransfer.files[0]);
+  openFiles(event.dataTransfer.files);
 });
 window.addEventListener('blur', () => { dragDepth = 0; $('drop').hidden = true; });
 for (const button of document.querySelectorAll('[data-background]')) button.onclick = () => {
@@ -513,6 +602,7 @@ renderer.setAnimationLoop((time, frame) => {
     $('timeline').value = action.time;
     $('time').textContent = `${action.time.toFixed(1)} / ${action.getClip().duration.toFixed(1)}`;
   }
+  vrm?.update(delta);
   let firstPlacedRender = false;
   if (frame) {
     const reference = renderer.xr.getReferenceSpace();
@@ -568,8 +658,12 @@ renderer.setAnimationLoop((time, frame) => {
 
 // URLSearchParams decodes an encoded URL once, including its query string.
 const modelURL = params.get('url');
+const animationURL = params.get('vrma');
 if (modelURL !== null) {
   $('open').hidden = true;
-  if (modelURL.trim()) openURL(modelURL.trim());
-  else status('urlパラメータにGLBの相対パスまたはURLを指定してください。', true);
+  if (!modelURL.trim()) status('urlパラメータにGLBまたはVRMのパスかURLを指定してください。', true);
+  else if (animationURL !== null && !animationURL.trim()) status('vrmaパラメータにVRMAのパスかURLを指定してください。', true);
+  else openURL(modelURL.trim(), animationURL?.trim());
+} else if (animationURL !== null) {
+  status('vrmaパラメータと一緒にurlパラメータでVRMを指定してください。', true);
 }

@@ -4,13 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
-  <title>GLBV — GLB Viewer</title>
+  <title>GLBV — GLB / VRM Viewer</title>
   <link rel="icon" type="image/png" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
   <script type="importmap">
-    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"}}
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/",
+        "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.5/lib/three-vrm.module.min.js",
+        "@pixiv/three-vrm-animation": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm-animation@3.5.5/lib/three-vrm-animation.module.min.js"
+      }
+    }
   </script>
 </head>
 <body>
@@ -19,10 +26,10 @@
     <a class="brand" href="./" aria-label="GLBV ホーム">GLB<span>V</span></a>
     <span class="divider"></span>
     <button id="open" class="primary">＋ 開く</button>
-    <input id="file" type="file" accept=".glb" hidden>
-    <span id="filename">GLB Viewer</span>
+    <input id="file" type="file" accept=".glb,.vrm,.vrma" multiple hidden>
+    <span id="filename">GLB / VRM Viewer</span>
     <button id="fit" title="モデル全体を表示 (F)" aria-label="モデル全体を表示" disabled>⛶</button>
-      <span id="info"></span>
+      <span id="info"><span id="mesh-info"></span><span id="animation-count"></span></span>
   </header>
 
   <aside class="settings panel" aria-label="表示設定">
@@ -69,12 +76,13 @@
   </aside>
 
   <main id="welcome">
-    <p>GLBファイルをここにドロップ</p>
+    <p>GLBまたはVRMをドロップ</p>
+    <p>VRMとVRMAを一緒に指定すると自動再生</p>
     <button id="demo" class="text-button">アニメーションのサンプルを見る</button>
   </main>
 
   <button id="exit-xr" class="panel">XRを終了</button>
-  <div id="drop" hidden>GLBファイルをドロップ</div>
+  <div id="drop" hidden>GLB／VRM（＋VRMA）をドロップ</div>
   <div id="status" role="status" aria-live="polite"></div>
   <footer>
     <div id="playback" class="panel" hidden>

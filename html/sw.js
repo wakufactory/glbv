@@ -1,6 +1,6 @@
 // Bump this version whenever the app shell or its dependencies change.
 const CACHE_PREFIX = `glbv-${encodeURIComponent(self.registration.scope)}-`;
-const CACHE_NAME = `${CACHE_PREFIX}v18-three-187`;
+const CACHE_NAME = `${CACHE_PREFIX}v20-three-187`;
 const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.187.0/';
 const LOCAL_ASSETS = [
   './', './index.html', './style.css', './app.js', './object-tree.js',
@@ -30,7 +30,11 @@ const THREE_ASSETS = [
   'examples/jsm/libs/basis/basis_transcoder.js',
   'examples/jsm/libs/basis/basis_transcoder.wasm',
 ].map(path => THREE_CDN + path);
-const ASSETS = new Set([...LOCAL_ASSETS, ...THREE_ASSETS]);
+const VRM_ASSETS = [
+  'https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.5/lib/three-vrm.module.min.js',
+  'https://cdn.jsdelivr.net/npm/@pixiv/three-vrm-animation@3.5.5/lib/three-vrm-animation.module.min.js',
+];
+const ASSETS = new Set([...LOCAL_ASSETS, ...THREE_ASSETS, ...VRM_ASSETS]);
 
 self.addEventListener('install', event => {
   // Fail installation if any dependency is missing. Keep the previous worker
@@ -54,7 +58,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   const home = new URL('./', self.registration.scope);
   // Ignore navigation query parameters (including ?url=...) only for the app
-  // document. Arbitrary remote/user GLBs are never stored in the app cache.
+  // document. Arbitrary models and animations are never stored in the app cache.
   const isAppNavigation = event.request.mode === 'navigate' &&
     url.origin === home.origin &&
     [home.pathname, `${home.pathname}index.html`].includes(url.pathname);

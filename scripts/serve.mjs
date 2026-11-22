@@ -76,6 +76,7 @@ const mimeTypes = {
   '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.webmanifest': 'application/manifest+json',
   '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json',
+  '.vrm': 'model/gltf-binary', '.vrma': 'model/gltf-binary',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
   '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
 };

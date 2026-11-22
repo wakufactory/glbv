@@ -61,13 +61,18 @@ function worker(scope = 'https://viewer.example/tools/glbv/') {
   };
 }
 
-test('installed shell and three.js including lazy decoders work offline under a subpath', async () => {
+test('installed shell, three.js and VRM libraries work offline under a subpath', async () => {
   const sw = worker();
   await sw.lifecycle('install');
   const urls = [...sw.requests];
   assert.ok(urls.some(url => url.endsWith('/build/three.core.js')));
   assert.ok(urls.some(url => url.endsWith('/draco/gltf/draco_decoder.wasm')));
   assert.ok(urls.some(url => url.endsWith('/basis/basis_transcoder.wasm')));
+  const html = await readFile(new URL('../html/index.html', import.meta.url), 'utf8');
+  const { imports } = JSON.parse(html.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]);
+  for (const name of ['@pixiv/three-vrm', '@pixiv/three-vrm-animation']) {
+    assert.ok(urls.includes(imports[name]), `${name} must be cached for offline loading`);
+  }
   assert.ok(urls.includes('https://viewer.example/tools/glbv/room-environment.js'));
   assert.ok(!urls.some(url => url.includes('/examples/jsm/environments/RoomEnvironment.js')));
   sw.offline();
@@ -75,10 +80,11 @@ test('installed shell and three.js including lazy decoders work offline under a 
     assert.equal(await (await sw.get(url)).text(), url);
   }
   const home = 'https://viewer.example/tools/glbv/';
-  for (const path of ['?url=./sample.glb', 'index.html?url=https://example.com/model.glb']) {
+  for (const path of ['?url=./sample.glb', 'index.html?url=https://example.com/model.glb', '?url=./avatar.vrm&vrma=./walk.vrma']) {
     assert.equal(await (await sw.get(home + path, 'navigate')).text(), home);
   }
   assert.equal(await sw.get(home + 'private.glb'), undefined);
+  assert.equal(await sw.get(home + 'walk.vrma'), undefined);
   assert.equal(await sw.get(home + 'reset.html', 'navigate'), undefined);
   assert.equal(await sw.get('https://example.com/model.glb'), undefined);
   assert.equal(await sw.get(home, 'cors', 'POST'), undefined);
